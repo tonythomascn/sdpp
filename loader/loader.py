@@ -7,6 +7,11 @@ from antelope.datascope import *
 """
 Data loader main entrance, accepting arguments and loading specified table loader.
 """
+def lineno():
+    """Returns the current line number in this program."""
+    import inspect
+    return inspect.currentframe().f_back.f_lineno
+
 def usage():
     print 'python loader.py [OPTIONS]\n\
     \t -h --help\t\t\tPrint this help screen\n\
@@ -21,10 +26,8 @@ def createMongoClient(mongodb_host, mongodb_port):
     from pymongo import MongoClient
     try:
         mongoclient = MongoClient('mongodb://' + mongodb_host + ':' + mongodb_port)
-
-        mongodb = mongoclient.test_database
-        collection = mongodb.test_collection
-        return mongoclient
+        mongodb = mongoclient['local']
+        return mongodb
     except pymongo.errors.ConnnectionFailure, e:
         print('Could not connect to MongoDB: %s' % e)
         sys.exit(2)
@@ -39,8 +42,8 @@ def main(argv):
             sys.exit(2)
         antelope_db = ''
         antelope_table = ''
-        mongodb_host = ''
-        mongodb_port = '28017'
+        mongodb_host = '127.0.0.1'
+        mongodb_port = '27017'
         mongodb_userid = ''
         mongodb_pwd = ''
         for opt, arg in opts:
@@ -69,7 +72,7 @@ def main(argv):
     if antelope_db.endswith('.'):
         antelope_db = antelope_db[:-1]
     
-    #init antelope database pointer and mongodb pointer
+    #init antelope database pointer and mongodb collection
     from antelope.datascope import dbopen
     #antedbptr = ''
     antedb = dbopen( antelope_db, "r" )
@@ -77,7 +80,8 @@ def main(argv):
     #dbtable = db.schema_tables['site']
     #for dbrecord in dbtable.iter_record():
     #    print repr(dbrecord)
-    
+    mongodb = createMongoClient(mongodb_host, mongodb_port)
+ 
     #after prepare for all the arguments, load the [table].py module
     import importlib
     #the name of 'site' has been taken, so new name is assigned
