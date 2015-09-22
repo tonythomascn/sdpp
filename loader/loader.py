@@ -41,7 +41,7 @@ def main(argv):
             usage()
             sys.exit(2)
         antelope_db = ''
-        antelope_table = ''
+        antelope_table = []
         mongodb_host = '127.0.0.1'
         mongodb_port = '27017'
         mongodb_userid = ''
@@ -58,7 +58,7 @@ def main(argv):
             elif opt in ('-w', '--mongodb_pwd'):
                 mongodb_pwd = arg
             elif opt in ('-t', '--antelope_table'):
-	        antelope_table = arg
+	        antelope_table.append(arg)
             elif opt in ('-h', '--help'):
                 usage()
                 sys.exit(2)
@@ -76,19 +76,19 @@ def main(argv):
     from antelope.datascope import dbopen
     #antedbptr = ''
     antedb = dbopen( antelope_db, "r" )
-    antedbptr = antedb.lookup(table=antelope_table)
-    #dbtable = db.schema_tables['site']
-    #for dbrecord in dbtable.iter_record():
-    #    print repr(dbrecord)
     mongodb = createMongoClient(mongodb_host, mongodb_port)
- 
-    #after prepare for all the arguments, load the [table].py module
-    import importlib
-    #the name of 'site' has been taken, so new name is assigned
-    if 'site' == antelope_table:
-        antelope_table = 'my' + antelope_table
-    load_module = __import__(antelope_table)
-    getattr(load_module, 'load')(antedbptr, mongodb)
+    
+    #multiple tables can be load at once 
+    for table in antelope_table:
+        antedbptr = antedb.lookup(table=table)
+        #after prepare for all the arguments, load the [table].py module
+        import importlib
+        #the name of 'site' has been taken, so new name is assigned
+        if 'site' == table:
+            table = 'my' + table
+        load_module = __import__(table)
+        import inserter
+        inserter.load(antedbptr, mongodb, table, load_module.fields)
     
     #after loading, close the pointer and connection
     antedb.close()
