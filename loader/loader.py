@@ -79,16 +79,16 @@ def main(argv):
     mongodb = createMongoClient(mongodb_host, mongodb_port)
     
     #multiple tables can be load at once 
-    for table in antelope_table:
-        antedbptr = antedb.lookup(table=table)
-        #after prepare for all the arguments, load the [table].py module
+    for tablename in antelope_table:
+        antedbptr = antedb.lookup(table=tablename)
+        #after prepare for all the arguments, load the [tablename].py module
         import importlib
         #the name of 'site' has been taken, so new name is assigned
-        if 'site' == table:
-            table = 'my' + table
-        load_module = __import__(table)
+        if 'site' == tablename:
+            tablename = 'my' + tablename
+        load_module = __import__(tablename)
         import inserter
-        inserter.load(antedbptr, mongodb, table, load_module.fields)
+        inserter.load(antedbptr, mongodb, tablename, load_module.fields)
     
     #after loading, close the pointer and connection
     antedb.close()
