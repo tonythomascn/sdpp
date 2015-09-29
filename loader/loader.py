@@ -3,7 +3,7 @@ import os
 sys.path.append( os.environ['ANTELOPE'] + '/data/python' )
 #add the current path to python path, so user module can be found
 sys.path.append('./')
-from antelope.datascope import *
+from antelope.datascope import dbopen
 """
 Data loader main entrance, accepting arguments and loading specified table loader.
 """
@@ -26,7 +26,7 @@ def createMongoClient(mongodb_host, mongodb_port):
     from pymongo import MongoClient
     try:
         mongoclient = MongoClient('mongodb://' + mongodb_host + ':' + mongodb_port)
-        mongodb = mongoclient['local']
+        mongodb = mongoclient['test']
         return mongodb
     except pymongo.errors.ConnnectionFailure, e:
         print('Could not connect to MongoDB: %s' % e)
@@ -80,7 +80,6 @@ def main(argv):
     
     #multiple tables can be load at once 
     for tablename in antelope_table:
-        antedbptr = antedb.lookup(table=tablename)
         #after prepare for all the arguments, load the [tablename].py module
         import importlib
         #the name of 'site' has been taken, so new name is assigned
@@ -88,7 +87,14 @@ def main(argv):
             tablename = 'my' + tablename
         load_module = __import__(tablename)
         import inserter
-        inserter.load(antedbptr, mongodb, tablename, load_module.fields)
+        if 'arrival' == tablename:
+            antedbptr = antedb.lookup(table='wfdisc')
+            inserter.joinLoad(antedbptr, mongodb, tablename, load_module.fields, 'arrival')
+        else:
+            if 'mysite' ==  tablename:
+                tablename = 'site'
+            antedbptr = antedb.lookup(table=tablename)
+            inserter.load(antedbptr, mongodb, tablename, load_module.fields)
     
     #after loading, close the pointer and connection
     antedb.close()
