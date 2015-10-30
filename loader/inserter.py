@@ -1,4 +1,3 @@
-import antelope._datascope as _datascope
 from pymongo import errors
  
 def joinLoad(antedb, mongodb, antelope_table, fields, *join_tables):
@@ -20,24 +19,26 @@ def joinLoad(antedb, mongodb, antelope_table, fields, *join_tables):
         chanid = []
         wfid = []
         for joined_view.record in range(joined_view.query('dbRECORD_COUNT')):
-            wfid.append(joined_view.getv('wfid'))
-            chanid.append(joined_view.getv('chanid'))
+            wfid.append(joined_view.getv('wfid')[0])
+            chanid.append(joined_view.getv('chanid')[0])
             if 3 == len(wfid):
                 values = joined_view.getv('sta', 'time', 'arid', 'jdate', 'stassid', 'chan', 'iphase', 'stype', 'deltim', 'azimuth', 'delaz', 'slow', 'delslo', 'ema', 'rect', 'amp', 'per', 'logat', 'clip', 'fm', 'snr', 'qual', 'auth', 'commid', 'lddate')
                 dic = dict(zip(fields, values))
                 dic['wfid'] = wfid
                 dic['chanid'] = chanid
-                #print(dic)
-                collection.save(dict(zip(fields, values)))
+                print(dic)
+                r = collection.save(dic)
+                print(r)
                 counter += 1
                 chanid = []
                 wfid = []
+                break
         print('%d records are added to collection %s' % (counter, antelope_table))
     except errors.ExecutionTimeout, e:
         print('Operation execution timeout %s' % e)
         return
 
-def load(antedbptr, mongodb, antelope_table, fields):
+def load(antedb, antedbptr, mongodb, antelope_table, fields):
     try:
         #module name 'site' has been taken
         if 'mysite' == antelope_table:
@@ -52,11 +53,33 @@ def load(antedbptr, mongodb, antelope_table, fields):
         print('Collection %s has following fields:' % antelope_table)
         print(fields)
         counter = 0
+        #create gridfs file descripter
+        import gridfs
+        fs = gridfs.GridFS(mongodb)
+        import pickle 
         for antedbptr.record in range(antedbptr.query("dbRECORD_COUNT")):
             result = antedbptr.get()
+            print(result)
             values = filter(None, [x.strip('\t\n\r') for x in result.split(' ')])
-            collection.save(dict(zip(fields, values)))
+            dic = dict(zip(fields, values))
+            if 'wfdisc' == antelope_table:
+                starttime = dic['time']
+                endtime = dic['endtime']
+                sta = dic['sta']
+                chan = dic['chan']
+                tr = antedbptr.trloadchan(starttime, endtime, sta, chan)
+                if tr.record > 1:
+                    print("More than one records found in station %s channel %s" % (sta, chan))
+                tr.record = 0
+                r = tr.trdata()
+   
+                f = dic['dir'] + '/' + dic['dfile'] + '.' + chan
+                with fs.new_file(filename=f, content_type='chunks') as fp:
+                    fp.write(pickle.dumps(r))
+        
+            collection.save(dic)
             counter += 1
+            break
         print('%d records are added to collection %s' % (counter, antelope_table))
     except errors.ExecutionTimeout, e:
         print('Operation execution timeout %s' % e)

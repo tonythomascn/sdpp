@@ -18,7 +18,7 @@ def usage():
     \t -d --antelope_db\t\tAntelope database directory (mandatory)\n\
     \t -t --antelope_table\t\tAntelope table (mandatory)\n\
     \t -i --mongodb_host\t\tMongoDB server host (default: localhost)\n\
-    \t -p --mongodb_port\t\tMongoDB server port (default: 28017)\n\
+    \t -p --mongodb_port\t\tMongoDB server port (default: 27017)\n\
     \t -u --mongodb_userid\t\tMongoDB user id\n\
     \t -w --mongodb_pwd\t\tMongoDB user password'
 
@@ -35,7 +35,7 @@ def createMongoClient(mongodb_host, mongodb_port):
 def main(argv):
     import getopt
     try:
-        opts, args = getopt.getopt(argv, "d:t:ipuwh", ["antelope_db=", \
+        opts, args = getopt.getopt(argv, "d:t:i:p:u:w:h", ["antelope_db=", \
         "antelope_table=", "mongodb_host=", "mongodb_port=", "mongodb_userid=", "mongodb_pwd=", "help"])
         if not opts:
             usage()
@@ -66,7 +66,7 @@ def main(argv):
     except getopt.GetoptError:
         usage()
         sys.exit(2)
-    if '' == antelope_db or '' == antelope_table:
+    if '' == antelope_db or not antelope_table:
         usage()
         sys.exit(2)
     if antelope_db.endswith('.'):
@@ -94,7 +94,7 @@ def main(argv):
             if 'mysite' ==  tablename:
                 tablename = 'site'
             antedbptr = antedb.lookup(table=tablename)
-            inserter.load(antedbptr, mongodb, tablename, load_module.fields)
+            inserter.load(antedb, antedbptr, mongodb, tablename, load_module.fields)
     
     #after loading, close the pointer and connection
     antedb.close()

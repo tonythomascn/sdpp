@@ -1,8 +1,7 @@
 import sys
-import os
 
 """
-Data loader main entrance, accepting arguments and loading specified table loader.
+Waveform transfer main entrance, accepting arguments and transfer all waveform data into GridFS.
 """
 def usage():
     print 'python transfer.py [OPTIONS]\n\
@@ -15,7 +14,7 @@ def createMongoClient(mongodb_host, mongodb_port):
     from pymongo import MongoClient
     try:
         mongoclient = MongoClient('mongodb://' + mongodb_host + ':' + mongodb_port)
-        mongodb = mongoclient['test']
+        mongodb = mongoclient['local']
         return mongodb
     except pymongo.errors.ConnnectionFailure, e:
         print('Could not connect to MongoDB: %s' % e)
@@ -24,7 +23,7 @@ def createMongoClient(mongodb_host, mongodb_port):
 def main(argv):
     import getopt
     try:
-        opts, args = getopt.getopt(argv, "w:iph", ["waveform_path=", \
+        opts, args = getopt.getopt(argv, "w:i:p:h", ["waveform_path=", \
         "mongodb_host=", "mongodb_port=", "help"])
         if not opts:
             usage()
@@ -62,17 +61,23 @@ def main(argv):
     #create gridfs file descripter
     import gridfs
     fs = gridfs.GridFS(mongodb)
-
+    
+    from obspy.core import read
     cursor = collection.find()
     count = 0
     for wf in cursor:
+        if '2011' in wf['dir']: continue
         name = waveform_path + '/' + wf['dir'] + '/' + wf['dfile']
-        #print(name)
-        with fs.new_file(filename=wf['dir'] + '/' + wf['dfile'], content_type='chunks') as fp:
-            file = open(name, 'r')
-            fp.write(file.read())
-            file.close()
-            count += 1
+        print(name)
+        traces = read(name)
+        for ts in traces:
+            f = wf['dir'] + '/' + wf['dfile'] + '.' + ts.stats['channel']
+            print(f)
+            #break
+            with fs.new_file(filename=f, content_type='chunks') as fp:
+                fp.write(ts.data)
+        count += 1
+        #break
     print('%d files have been transfered into GridFS' % count)
 
     
