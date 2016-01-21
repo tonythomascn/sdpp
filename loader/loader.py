@@ -58,7 +58,7 @@ def main(argv):
             elif opt in ('-w', '--mongodb_pwd'):
                 mongodb_pwd = arg
             elif opt in ('-t', '--antelope_table'):
-	        antelope_table.append(arg)
+                antelope_table.append(arg)
             elif opt in ('-h', '--help'):
                 usage()
                 sys.exit(2)

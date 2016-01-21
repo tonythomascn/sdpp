@@ -1,4 +1,5 @@
 from pymongo import errors
+from antelope.datascope import TrdataError
  
 def joinLoad(antedb, mongodb, antelope_table, fields, *join_tables):
     try:
@@ -26,13 +27,13 @@ def joinLoad(antedb, mongodb, antelope_table, fields, *join_tables):
                 dic = dict(zip(fields, values))
                 dic['wfid'] = wfid
                 dic['chanid'] = chanid
-                print(dic)
+                #print(dic)
                 r = collection.save(dic)
-                print(r)
+                #print(r)
                 counter += 1
                 chanid = []
                 wfid = []
-                break
+                #break
         print('%d records are added to collection %s' % (counter, antelope_table))
     except errors.ExecutionTimeout, e:
         print('Operation execution timeout %s' % e)
@@ -53,13 +54,14 @@ def load(antedb, antedbptr, mongodb, antelope_table, fields):
         print('Collection %s has following fields:' % antelope_table)
         print(fields)
         counter = 0
+        wfcounter = 0
         #create gridfs file descripter
         import gridfs
         fs = gridfs.GridFS(mongodb)
         import pickle 
         for antedbptr.record in range(antedbptr.query("dbRECORD_COUNT")):
             result = antedbptr.get()
-            print(result)
+            #print(result)
             values = filter(None, [x.strip('\t\n\r') for x in result.split(' ')])
             dic = dict(zip(fields, values))
             if 'wfdisc' == antelope_table:
@@ -67,19 +69,27 @@ def load(antedb, antedbptr, mongodb, antelope_table, fields):
                 endtime = dic['endtime']
                 sta = dic['sta']
                 chan = dic['chan']
-                tr = antedbptr.trloadchan(starttime, endtime, sta, chan)
-                if tr.record > 1:
-                    print("More than one records found in station %s channel %s" % (sta, chan))
-                tr.record = 0
-                r = tr.trdata()
+                try:
+                    tr = antedbptr.trloadchan(starttime, endtime, sta, chan)
+                    if tr.query("dbRECORD_COUNT") > 1:
+                        print("More than one records found in station %s channel %s" % (sta, chan))
+                        return
+                    tr.record = 0
+                    r = tr.trdata()
    
-                f = dic['dir'] + '/' + dic['dfile'] + '.' + chan
-                with fs.new_file(filename=f, content_type='chunks') as fp:
-                    fp.write(pickle.dumps(r))
-        
+                    f = dic['dir'] + '/' + dic['dfile'] + '.' + chan
+                
+                    with fs.new_file(filename=f, content_type='chunks') as fp:
+                        fp.write(pickle.dumps(r))
+                    print("%d %s" % (wfcounter, f))
+                    wfcounter += 1
+                except TrdataError as e:
+                    print('TrdataError %s' % e)
+                    continue
+                finally:
+                    tr.close()
             collection.save(dic)
             counter += 1
-            break
         print('%d records are added to collection %s' % (counter, antelope_table))
     except errors.ExecutionTimeout, e:
         print('Operation execution timeout %s' % e)
